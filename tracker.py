@@ -9,7 +9,7 @@ hsvColorBounds['white'] = (np.array([0,0,80],np.uint8), np.array([255,50,120],np
 hsvColorBounds['yellow'] = (np.array([15, 204, 204],np.uint8), np.array([20, 255, 255],np.uint8))
 hsvColorBounds['red'] = (np.array([0, 153, 127],np.uint8), np.array([4, 230, 179],np.uint8))
 
-pixelsPerMeter = 519.0 # Just a guess from looking at the video
+pixelsPerMeter = 981.0 # Just a guess from looking at the video
 FPS = 30.0
 
 # Euler's method will proceed by timeStepSize / timeStepPrecision at a time
@@ -94,9 +94,7 @@ def main():
     cap = cv2.VideoCapture('juggling.mp4')
 
     fourcc1 = cv2.VideoWriter_fourcc(*'XVID')
-    fourcc2 = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter('output.avi',fourcc1, 30.0, (640,480))
-    outThres = cv2.VideoWriter('threshold.avi',fourcc2, 30.0, (640,480))
+    out = cv2.VideoWriter('output.avi',fourcc1, 20.0, (640,480))
     
     while(cap.isOpened()):
         frame = getFrame(cap)
@@ -303,7 +301,6 @@ def main():
 
         cv2.imshow('Image with Estimated Ball Center', frame)
         out.write(frame)
-        outThres.write(thresholdImage)
 
         k = cv2.waitKey(int(1000.0 / FPS)) & 0xFF
         if k == 27:
@@ -312,7 +309,6 @@ def main():
 
     cap.release()
     out.release()
-    outThres.release()
     cv2.destroyAllWindows()
 
 
