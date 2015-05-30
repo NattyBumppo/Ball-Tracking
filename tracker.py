@@ -8,6 +8,10 @@ hsvColorBounds['green'] = (np.array([30,0,0],np.uint8), np.array([100,255,255],n
 hsvColorBounds['white'] = (np.array([0,0,80],np.uint8), np.array([255,50,120],np.uint8))
 hsvColorBounds['yellow'] = (np.array([15, 204, 204],np.uint8), np.array([20, 255, 255],np.uint8))
 hsvColorBounds['red'] = (np.array([0, 153, 127],np.uint8), np.array([4, 230, 179],np.uint8))
+hsvColorBounds['orange'] = (np.array([15, 204, 204],np.uint8), np.array([20, 255, 255],np.uint8))
+hsvColorBounds['darkYellow'] = (np.array([20, 115, 140],np.uint8), np.array([25, 205, 230],np.uint8))
+hsvColorBounds['orange2'] = (np.array([2, 150, 140],np.uint8), np.array([24, 255, 204],np.uint8))
+
 
 pixelsPerMeter = 981.0 # Just a guess from looking at the video
 FPS = 30.0
@@ -110,7 +114,7 @@ def main():
 
         # Subtract background (makes isolation of balls more effective, in combination with thresholding)
         fgmask = fgbg.apply(frame)
-        foreground = cv2.bitwise_and(frame,frame,mask = fgmask)
+        foreground = cv2.bitwise_and(frame,frame, mask = fgmask)
 
         # Convert to HSV
         hsvBlurredFrame = cv2.cvtColor(foreground, cv2.COLOR_BGR2HSV)
