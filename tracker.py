@@ -87,6 +87,7 @@ def estimateVelocity(pos0, pos1, normalized=False):
 def main():
 
     averageWithLastVelocity = True
+    showBallDetectionData = False
 
     ballCenters = [[0,0],[0,0],[0,0]]
     ballVelocities = [[0,0],[0,0],[0,0]]
@@ -114,12 +115,13 @@ def main():
         # Convert to HSV
         hsvBlurredFrame = cv2.cvtColor(foreground, cv2.COLOR_BGR2HSV)
 
-        cv2.imshow('hsvBlurredFrame', hsvBlurredFrame)
+        # cv2.imshow('hsvBlurredFrame', hsvBlurredFrame)
 
         # Find locations of yellow balls
         color = 'yellow'
         colorBounds = hsvColorBounds[color]
         thresholdImage = cv2.inRange(hsvBlurredFrame, colorBounds[0], colorBounds[1])
+        yellowThresholdImage = thresholdImage.copy()
 
         # Open to remove small elements/noise
         kernel = np.ones((5,5)).astype(np.uint8)
@@ -228,7 +230,9 @@ def main():
         thresholdImage = cv2.erode(thresholdImage, kernel)
         thresholdImage = cv2.dilate(thresholdImage, kernel)
 
-        cv2.imshow('thresholdImage (red)', thresholdImage)
+        redThresholdImage = thresholdImage.copy()
+
+        # cv2.imshow('thresholdImage (red)', thresholdImage)
 
         # Find the points in the image where this is true
         points = np.dstack(np.where(thresholdImage>0)).astype(np.float32)
@@ -244,10 +248,11 @@ def main():
                 ballVelocities[2] = [(estimatedVelocity[0] + ballVelocities[2][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[2][1]*timeStepSize)/2.0]
             else:
                 ballVelocities[2] = estimateVelocity(ballCenters[2], (centers[0][1], centers[0][0]))
-
-
-            
+           
             ballCenters[2] = (int(centers[0][1]), int(centers[0][0]))
+
+            # Draw velocity vector
+            # cv2.arrowedLine(frame, tuple(ballCenters[2]), (int(ballCenters[2][0]+ballVelocities[2][0]*2), int(ballCenters[2][1]+ballVelocities[2][1]*2)), (0,255,255), 2, 2, 0, 0.1)
 
             # Adjust velocity to be in pixels/sec
             ballVelocities[2][0] = ballVelocities[2][0] / timeStepSize
@@ -255,9 +260,6 @@ def main():
 
             # Draw position marker
             cv2.circle(frame, tuple(ballCenters[2]), 6, (50,200,50), thickness=6)
-
-            # Draw velocity vector
-            # cv2.arrowedLine(frame, tuple(ballCenters[2]), (int(ballCenters[2][0]+ballVelocities[2][0]*2), int(ballCenters[2][1]+ballVelocities[2][1]*2)), (0,255,255), 2, 2, 0, 0.1)
 
             positions = getTrajectory(ballCenters[2], ballVelocities[2], (0, g), timeStepSize, eulerSteps)
 
@@ -269,9 +271,18 @@ def main():
                                     
                     cv2.circle(frame, (int(position[0]), int(position[1])), 2, ballColor, thickness=2)
 
+        if showBallDetectionData:
+            combinedMask = cv2.bitwise_or(yellowThresholdImage, redThresholdImage, frame)
 
-        cv2.imshow('Image with Estimated Ball Center', frame)
-        out.write(frame)
+            maskedImage = cv2.bitwise_and(frameCopy, frameCopy, mask = combinedMask)
+
+            weightedCombination = cv2.addWeighted(frameCopy, 0.1, maskedImage, 0.9, 0)
+
+            cv2.imshow('Ball Detection Data', weightedCombination)
+            out.write(weightedCombination)
+        else:
+            cv2.imshow('Image with Estimated Ball Center', frame)
+            out.write(frame)
 
         k = cv2.waitKey(int(1000.0 / FPS)) & 0xFF
         if k == 27:
