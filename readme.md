@@ -1,0 +1,4 @@
+Ball-Tracking
+===============
+
+This is a simple Python application that uses the OpenCV library (version 2) to track the movement of balls during a video. It tracks the balls with a combination of color filtering and k-means clustering. Once the balls' positions are determined, their velocities are estimated by comparing consecutive frames. Then numerical integration (Euler's method) is used to find a predicted trajectory through space (subject to gravity). Ultimately, these trajectories will updated  with new data from the image processing side, using a Kalman filter to combine the predicted trajectory with the observed position and velocity.
