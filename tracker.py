@@ -96,6 +96,8 @@ def main():
     fourcc1 = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter('output.avi',fourcc1, 20.0, (640,480))
     
+    fgbg = cv2.createBackgroundSubtractorMOG2()
+
     while(cap.isOpened()):
         frame = getFrame(cap)
         if frame is None:
@@ -105,8 +107,12 @@ def main():
 
         blurredFrame = blur(frame)
 
+        # Subtract background (makes isolation of balls more effective, in combination with thresholding)
+        fgmask = fgbg.apply(frame)
+        foreground = cv2.bitwise_and(frame,frame,mask = fgmask)
+
         # Convert to HSV
-        hsvBlurredFrame = cv2.cvtColor(blurredFrame, cv2.COLOR_BGR2HSV)
+        hsvBlurredFrame = cv2.cvtColor(foreground, cv2.COLOR_BGR2HSV)
 
         cv2.imshow('hsvBlurredFrame', hsvBlurredFrame)
 
@@ -117,8 +123,8 @@ def main():
 
         # Open to remove small elements/noise
         kernel = np.ones((5,5)).astype(np.uint8)
-        thresholdImage = cv2.erode(thresholdImage, kernel)
-        thresholdImage = cv2.dilate(thresholdImage, kernel)
+        # thresholdImage = cv2.erode(thresholdImage, kernel)
+        # thresholdImage = cv2.dilate(thresholdImage, kernel)
 
         # cv2.imshow('thresholdImage', thresholdImage)
 
@@ -129,11 +135,6 @@ def main():
             # Break into clusters using k-means clustering
             criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
             compactness, labels, centers = cv2.kmeans(points, 2, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)  
-            # print compactness
-
-
-            # This line helps things not crash, for some reason
-            centers = centers.tolist()
 
             # Don't let the blue and white marked balls get mixed up
             distBC0toC0 = np.sqrt((ballCenters[0][0] - centers[0][1])**2 + (ballCenters[0][1] - centers[0][0])**2)
@@ -202,22 +203,10 @@ def main():
 
             positions = getTrajectory(ballCenters[0], ballVelocities[0], (0, g), timeStepSize, eulerSteps)
 
-            # print positions
-            # print ''
-
             for i, position in enumerate(positions):
                 height, width, depth = frameCopy.shape
                 if (position[0] < width) and (position[1] < height):
-
-                    # blankImage = np.zeros((height,width,3), np.uint8)
-                    # blankImageAlpha = cv2.cvtColor(blankImage, cv2.COLOR_BGR2RGBA)
-                    # # Alpha blending depending on how far along this is
-                    # alpha = i / len(positions)
                     ballColor = (255,55,55)
-
-                    # print 'ballVelocities[0]', ballVelocities[0]
-                    # print 'ballCenters[0]', ballCenters[0]
-                    
                     cv2.circle(frame, (int(position[0]), int(position[1])), 2, ballColor, thickness=2)
 
             positions = getTrajectory(ballCenters[1], ballVelocities[1], (0, g), timeStepSize, eulerSteps)
@@ -226,18 +215,8 @@ def main():
                 height, width, depth = frameCopy.shape
                 if (position[0] < width) and (position[1] < height):
 
-                    # blankImage = np.zeros((height,width,3), np.uint8)
-                    # blankImageAlpha = cv2.cvtColor(blankImage, cv2.COLOR_BGR2RGBA)
-                    # # Alpha blending depending on how far along this is
-                    # alpha = i / len(positions)
                     ballColor = (255,255,255)
-                                    
-                    # print 'ballVelocities[1]', ballVelocities[1]
-                    # print 'ballCenters[1]', ballCenters[1]
-
                     cv2.circle(frame, (int(position[0]), int(position[1])), 2, ballColor, thickness=2)                    
-
-        # points = rejectOutlierPoints(points)
 
         # Find location of red ball
         color = 'red'
@@ -259,9 +238,6 @@ def main():
             criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
             compactness, labels, centers = cv2.kmeans(points, 1, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
             
-            # This line helps things not crash, for some reason
-            centers = centers.tolist()
-
             # Find the velocity for the third ball and update its position
             if averageWithLastVelocity:
                 estimatedVelocity = estimateVelocity(ballCenters[2], (centers[0][1], centers[0][0]))
@@ -279,21 +255,16 @@ def main():
 
             # Draw position marker
             cv2.circle(frame, tuple(ballCenters[2]), 6, (50,200,50), thickness=6)
+
             # Draw velocity vector
             # cv2.arrowedLine(frame, tuple(ballCenters[2]), (int(ballCenters[2][0]+ballVelocities[2][0]*2), int(ballCenters[2][1]+ballVelocities[2][1]*2)), (0,255,255), 2, 2, 0, 0.1)
 
             positions = getTrajectory(ballCenters[2], ballVelocities[2], (0, g), timeStepSize, eulerSteps)
-            # print positions
-            # print ''
 
             for i, position in enumerate(positions):
                 height, width, depth = frameCopy.shape
                 if (position[0] < width) and (position[1] < height):
 
-                    # blankImage = np.zeros((height,width,3), np.uint8)
-                    # blankImageAlpha = cv2.cvtColor(blankImage, cv2.COLOR_BGR2RGBA)
-                    # # Alpha blending depending on how far along this is
-                    # alpha = i / len(positions)
                     ballColor = (105,255,105)
                                     
                     cv2.circle(frame, (int(position[0]), int(position[1])), 2, ballColor, thickness=2)
