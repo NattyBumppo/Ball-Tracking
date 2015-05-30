@@ -12,11 +12,12 @@ hsvColorBounds['red'] = (np.array([0, 153, 127],np.uint8), np.array([4, 230, 179
 pixelsPerMeter = 519.0 # Just a guess from looking at the video
 FPS = 30.0
 
-# Euler's method will proceed one frame at a time
+# Euler's method will proceed by timeStepSize / timeStepPrecision at a time
 timeStepSize = 1.0 / FPS
+timeStepPrecision = 2.0
 
 # Number of Euler's method steps to take
-eulerSteps = 20
+eulerSteps = 18
 
 # Gravitational acceleration is in units of pixels per second squared
 g = 9.81 * pixelsPerMeter
@@ -48,7 +49,7 @@ def getTrajectory(initialPosition, initialVelocity, acceleration, timeDelta, num
     position = list(initialPosition)
     velocity = list(initialVelocity)
     for i in range(numTrajPoints):
-        position, velocity = eulerExtrapolate(position, velocity, acceleration, timeDelta)
+        position, velocity = eulerExtrapolate(position, velocity, acceleration, timeDelta / timeStepPrecision)
             
         positions.append(position[:])
     return positions
@@ -85,13 +86,17 @@ def estimateVelocity(pos0, pos1, normalized=False):
 
 def main():
 
+    averageWithLastVelocity = True
+
     ballCenters = [[0,0],[0,0],[0,0]]
     ballVelocities = [[0,0],[0,0],[0,0]]
 
     cap = cv2.VideoCapture('juggling.mp4')
 
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter('output.avi',fourcc, 20.0, (640,480))
+    fourcc1 = cv2.VideoWriter_fourcc(*'XVID')
+    fourcc2 = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter('output.avi',fourcc1, 30.0, (640,480))
+    outThres = cv2.VideoWriter('threshold.avi',fourcc2, 30.0, (640,480))
     
     while(cap.isOpened()):
         frame = getFrame(cap)
@@ -117,7 +122,7 @@ def main():
         thresholdImage = cv2.erode(thresholdImage, kernel)
         thresholdImage = cv2.dilate(thresholdImage, kernel)
 
-        cv2.imshow('thresholdImage', thresholdImage)
+        # cv2.imshow('thresholdImage', thresholdImage)
 
         # Find the points in the image where this is true
         points = np.dstack(np.where(thresholdImage>0)).astype(np.float32)
@@ -140,21 +145,47 @@ def main():
                 # Ball 0 <-> Center 0, Ball 1 <-> Center 1
 
                 # First find the velocity for the first ball and update the position
-                ballVelocities[0] = estimateVelocity(ballCenters[0], (centers[0][1], centers[0][0]))
+                if averageWithLastVelocity:
+                    # print 'Current velocity of ball 0:', ballVelocities[0][0]
+                    # print 'After conversion:', ballVelocities[0][0]*timeStepSize
+
+                    estimatedVelocity = estimateVelocity(ballCenters[0], (centers[0][1], centers[0][0]))
+                    # print 'Estimated velocity:', estimatedVelocity
+                    ballVelocities[0] = [(estimatedVelocity[0] + ballVelocities[0][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[0][1]*timeStepSize)/2.0]
+                    # print 'Updated to:', ballVelocities[0]
+                else:
+                    ballVelocities[0] = estimateVelocity(ballCenters[0], (centers[0][1], centers[0][0]))
+
                 ballCenters[0] = (int(centers[0][1]), int(centers[0][0]))
 
                 # Now find the velocity for the second ball and update the position
-                ballVelocities[1] = estimateVelocity(ballCenters[1], (centers[1][1], centers[1][0]))
+                if averageWithLastVelocity:
+                    estimatedVelocity = estimateVelocity(ballCenters[1], (centers[1][1], centers[1][0]))
+                    ballVelocities[1] = [(estimatedVelocity[0] + ballVelocities[1][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[1][1]*timeStepSize)/2.0]
+                else:
+                    ballVelocities[1] = estimateVelocity(ballCenters[1], (centers[1][1], centers[1][0]))
+
                 ballCenters[1] = (int(centers[1][1]), int(centers[1][0]))
             else:
                 # Ball 1 <-> Center 0, Ball 0 <-> Center 1
 
                 # First find the velocity for the first ball and update the position
-                ballVelocities[1] = estimateVelocity(ballCenters[1], (centers[0][1], centers[0][0]))
+                if averageWithLastVelocity:
+                    estimatedVelocity = estimateVelocity(ballCenters[1], (centers[0][1], centers[0][0]))
+                    ballVelocities[1] = [(estimatedVelocity[0] + ballVelocities[1][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[1][1]*timeStepSize)/2.0]
+                else:
+                    ballVelocities[1] = estimateVelocity(ballCenters[1], (centers[0][1], centers[0][0]))
+                
                 ballCenters[1] = (int(centers[0][1]), int(centers[0][0]))
 
                 # Now find the velocity for the second ball and update the position
-                ballVelocities[0] = estimateVelocity(ballCenters[0], (centers[1][1], centers[1][0]))
+                if averageWithLastVelocity:
+                    estimatedVelocity = estimateVelocity(ballCenters[0], (centers[1][1], centers[1][0]))
+                    ballVelocities[0] = [(estimatedVelocity[0] + ballVelocities[0][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[0][1]*timeStepSize)/2.0]
+                else:
+                    ballVelocities[0] = estimateVelocity(ballCenters[0], (centers[1][1], centers[1][0]))
+
+
                 ballCenters[0] = (int(centers[1][1]), int(centers[1][0]))
 
             # Draw position markers
@@ -185,7 +216,10 @@ def main():
                     # # Alpha blending depending on how far along this is
                     # alpha = i / len(positions)
                     ballColor = (255,55,55)
-                                    
+
+                    # print 'ballVelocities[0]', ballVelocities[0]
+                    # print 'ballCenters[0]', ballCenters[0]
+                    
                     cv2.circle(frame, (int(position[0]), int(position[1])), 2, ballColor, thickness=2)
 
             positions = getTrajectory(ballCenters[1], ballVelocities[1], (0, g), timeStepSize, eulerSteps)
@@ -200,6 +234,9 @@ def main():
                     # alpha = i / len(positions)
                     ballColor = (255,255,255)
                                     
+                    # print 'ballVelocities[1]', ballVelocities[1]
+                    # print 'ballCenters[1]', ballCenters[1]
+
                     cv2.circle(frame, (int(position[0]), int(position[1])), 2, ballColor, thickness=2)                    
 
         # points = rejectOutlierPoints(points)
@@ -214,6 +251,8 @@ def main():
         thresholdImage = cv2.erode(thresholdImage, kernel)
         thresholdImage = cv2.dilate(thresholdImage, kernel)
 
+        cv2.imshow('thresholdImage (red)', thresholdImage)
+
         # Find the points in the image where this is true
         points = np.dstack(np.where(thresholdImage>0)).astype(np.float32)
 
@@ -226,7 +265,14 @@ def main():
             centers = centers.tolist()
 
             # Find the velocity for the third ball and update its position
-            ballVelocities[2] = estimateVelocity(ballCenters[2], (centers[0][1], centers[0][0]))
+            if averageWithLastVelocity:
+                estimatedVelocity = estimateVelocity(ballCenters[2], (centers[0][1], centers[0][0]))
+                ballVelocities[2] = [(estimatedVelocity[0] + ballVelocities[2][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[2][1]*timeStepSize)/2.0]
+            else:
+                ballVelocities[2] = estimateVelocity(ballCenters[2], (centers[0][1], centers[0][0]))
+
+
+            
             ballCenters[2] = (int(centers[0][1]), int(centers[0][0]))
 
             # Adjust velocity to be in pixels/sec
@@ -257,6 +303,7 @@ def main():
 
         cv2.imshow('Image with Estimated Ball Center', frame)
         out.write(frame)
+        outThres.write(thresholdImage)
 
         k = cv2.waitKey(int(1000.0 / FPS)) & 0xFF
         if k == 27:
@@ -265,6 +312,7 @@ def main():
 
     cap.release()
     out.release()
+    outThres.release()
     cv2.destroyAllWindows()
 
 
