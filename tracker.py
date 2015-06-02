@@ -10,10 +10,17 @@ hsvColorBounds['yellow'] = (np.array([15, 204, 204],np.uint8), np.array([20, 255
 hsvColorBounds['red'] = (np.array([0, 153, 127],np.uint8), np.array([4, 230, 179],np.uint8))
 hsvColorBounds['orange'] = (np.array([15, 204, 204],np.uint8), np.array([20, 255, 255],np.uint8))
 hsvColorBounds['darkYellow'] = (np.array([20, 115, 140],np.uint8), np.array([25, 205, 230],np.uint8))
-hsvColorBounds['orange2'] = (np.array([2, 150, 140],np.uint8), np.array([24, 255, 204],np.uint8))
+
+hsvColorBounds['darkYellowAttempt2(isolating)'] = (np.array([20, 60, 117],np.uint8), np.array([32, 222, 222],np.uint8))
+
+hsvColorBounds['orange2'] = (np.array([2, 150, 140],np.uint8), np.array([19, 255, 204],np.uint8))
 
 
-pixelsPerMeter = 981.0 # Just a guess from looking at the video
+videoFilename = 'juggling2.mp4'
+
+# pixelsPerMeter = 981.0 # Just a guess from looking at the video (juggling.mp4)
+pixelsPerMeter = 840.0 # Just a guess from looking at the video (juggling2.mp4)
+
 FPS = 30.0
 
 # Euler's method will proceed by timeStepSize / timeStepPrecision at a time
@@ -96,12 +103,12 @@ def main():
     ballCenters = [[0,0],[0,0],[0,0]]
     ballVelocities = [[0,0],[0,0],[0,0]]
 
-    cap = cv2.VideoCapture('juggling.mp4')
+    cap = cv2.VideoCapture(videoFilename)
 
     fourcc1 = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter('output.avi',fourcc1, 20.0, (640,480))
     
-    fgbg = cv2.createBackgroundSubtractorMOG2()
+    # fgbg = cv2.createBackgroundSubtractorMOG2()
 
     while(cap.isOpened()):
         frame = getFrame(cap)
@@ -113,26 +120,27 @@ def main():
         blurredFrame = blur(frame)
 
         # Subtract background (makes isolation of balls more effective, in combination with thresholding)
-        fgmask = fgbg.apply(frame)
-        foreground = cv2.bitwise_and(frame,frame, mask = fgmask)
+        # fgmask = fgbg.apply(frame)
+        # foreground = cv2.bitwise_and(frame,frame, mask = fgmask)
 
         # Convert to HSV
-        hsvBlurredFrame = cv2.cvtColor(foreground, cv2.COLOR_BGR2HSV)
+        # hsvBlurredFrame = cv2.cvtColor(foreground, cv2.COLOR_BGR2HSV)
+        hsvBlurredFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-        # cv2.imshow('hsvBlurredFrame', hsvBlurredFrame)
+        cv2.imshow('hsvBlurredFrame', hsvBlurredFrame)
 
         # Find locations of yellow balls
-        color = 'yellow'
+        color = 'orange2'
         colorBounds = hsvColorBounds[color]
         thresholdImage = cv2.inRange(hsvBlurredFrame, colorBounds[0], colorBounds[1])
         yellowThresholdImage = thresholdImage.copy()
 
         # Open to remove small elements/noise
         kernel = np.ones((5,5)).astype(np.uint8)
-        # thresholdImage = cv2.erode(thresholdImage, kernel)
-        # thresholdImage = cv2.dilate(thresholdImage, kernel)
+        thresholdImage = cv2.erode(thresholdImage, kernel)
+        thresholdImage = cv2.dilate(thresholdImage, kernel)
 
-        # cv2.imshow('thresholdImage', thresholdImage)
+        cv2.imshow('thresholdImage', thresholdImage)
 
         # Find the points in the image where this is true
         points = np.dstack(np.where(thresholdImage>0)).astype(np.float32)
@@ -225,7 +233,7 @@ def main():
                     cv2.circle(frame, (int(position[0]), int(position[1])), 2, ballColor, thickness=2)                    
 
         # Find location of red ball
-        color = 'red'
+        color = 'darkYellowAttempt2(isolating)'
         colorBounds = hsvColorBounds[color]
         thresholdImage = cv2.inRange(hsvBlurredFrame, colorBounds[0], colorBounds[1])
 
@@ -274,6 +282,9 @@ def main():
                     ballColor = (105,255,105)
                                     
                     cv2.circle(frame, (int(position[0]), int(position[1])), 2, ballColor, thickness=2)
+
+        cv2.imshow('orange balls', yellowThresholdImage)
+        cv2.imshow('yellow balls', redThresholdImage)
 
         if showBallDetectionData:
             combinedMask = cv2.bitwise_or(yellowThresholdImage, redThresholdImage, frame)
