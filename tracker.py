@@ -95,16 +95,170 @@ def estimateVelocity(pos0, pos1, normalized=False):
     
     return velocity
 
+# Performs all necessary pre-processing steps before the color thresholding
+def processForThresholding(frame, colorName):
+    blurredFrame = blur(frame)
+
+    # Subtract background (makes isolation of balls more effective, in combination with thresholding)
+    # fgmask = fgbg.apply(frame)
+    # foreground = cv2.bitwise_and(frame,frame, mask = fgmask)
+
+    # Convert to HSV
+    # hsvBlurredFrame = cv2.cvtColor(foreground, cv2.COLOR_BGR2HSV)
+    hsvBlurredFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # cv2.imshow('hsvBlurredFrame', hsvBlurredFrame)
+
+    return hsvBlurredFrame
+
+# # Returns an array of states (position and velocity) given a list of color-thresholded frames
+# # and a corresponding list of ball color names (must be the same size).
+# # This allows for flexibility in how many balls are detected for each color.
+# def getBallStates(thresholdFrames, ballColorNames):
+#     # Each threshold image must have a corresponding ball color,
+#     # even if duplicate threshold images are used for multiple
+#     # occurrences of balls that are colored the same
+#     assert len(thresholdFrames) == len(ballColorNames)
+
+def smoothNoise(frame):
+    kernel = np.ones((5,5)).astype(np.uint8)
+    frame = cv2.erode(frame, kernel)
+    frame = cv2.dilate(frame, kernel)    
+    return frame
+
+def initializeBallStates(numBalls):
+    ballCenters = []
+    ballVelocities = []
+    for b in range numBalls:
+        ballCenters.append([0,0])
+        ballVelocities.append([0,0])
+    return ballCenters, ballVelocities
+
+# A function of both velocity and position to find difference
+# between two values (like 4D distance)
+def distance4D(p, q):
+    dist = math.sqrt((p[0][0]-q[0][0])**2 + (p[0][1]-q[0][1])**2 + (p[1][0]-q[1][0])**2 + (p[1][1]-q[1][1])**2)
+    return dist
+
+
+def findBallsInImage(image, ballIndices, ballCenters, ballVelocities):
+
+    numBallsToFind = len(ballIndices)
+
+    # Get a list of all of the non-blank points in the image
+    points = np.dstack(np.where(thresholdImage>0)).astype(np.float32)
+
+    if len(points[0]) >= numBallsToFind:
+        # Break into clusters using k-means clustering
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+        compactness, labels, centers = cv2.kmeans(points, numBallsToFind, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)  
+
+        predictedVelocities = 
+
+        # The centers object will now contain a list of numBallsToFind points at which
+        # it believes the ball centers to be. We need to simply figure out which previous
+        # ball position/velocity the predicted position/velocity is nearest to, and use
+        # those matches to ensure that we update the right positions and velocities.
+        #
+
+
+        # p0 = (22,33)
+        # p1 = (55,33)
+        # p2 = (10,39)
+        # p3 = (0,0)
+        # p_arr = [p0, p1, p2, p3]
+
+        # n = len(p_arr)
+
+        # c0 = (1,1)
+        # c1 = (10.1, 38)
+        # c2 = (54,34)
+        # c3 = (21,30)
+        # c_arr = [c0,c1,c2,c3]
+
+        # Find minimal pairings of ballCenter&ballVelocity to centers
+        pairings = []
+        for pair in itertools.product(ballCenters, centers):
+            pairings.append((pair, distance4D(pair[0], pair[1])))
+
+
+        sorted_pairings = sorted(pairings, key=lambda item: item[1])
+        # print sorted_pairings
+
+        # Go through the list of sorted pairings and find matches for all p values
+        min_matches = []
+        for pairing in sorted_pairings:
+            p = pairing[0][0] 
+            if p not in [x[0][0] for x in min_matches]:
+                min_matches.append(pairing)
+                print "couldn't find", pairing[0]
+
+        print min_matches        
+
+
+        # Don't let the blue and white marked balls get mixed up
+        distBC0toC0 = np.sqrt((ballCenters[0][0] - centers[0][1])**2 + (ballCenters[0][1] - centers[0][0])**2)
+        distBC0toC1 = np.sqrt((ballCenters[0][0] - centers[1][1])**2 + (ballCenters[0][1] - centers[1][0])**2)
+
+        if distBC0toC0 < distBC0toC1:
+            # Ball 0 <-> Center 0, Ball 1 <-> Center 1
+
+            # First find the velocity for the first ball and update the position
+            if averageWithLastVelocity:
+                # print 'Current velocity of ball 0:', ballVelocities[0][0]
+                # print 'After conversion:', ballVelocities[0][0]*timeStepSize
+
+                estimatedVelocity = estimateVelocity(ballCenters[0], (centers[0][1], centers[0][0]))
+                # print 'Estimated velocity:', estimatedVelocity
+                ballVelocities[0] = [(estimatedVelocity[0] + ballVelocities[0][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[0][1]*timeStepSize)/2.0]
+                # print 'Updated to:', ballVelocities[0]
+            else:
+                ballVelocities[0] = estimateVelocity(ballCenters[0], (centers[0][1], centers[0][0]))
+
+            ballCenters[0] = (int(centers[0][1]), int(centers[0][0]))
+
+            # Now find the velocity for the second ball and update the position
+            if averageWithLastVelocity:
+                estimatedVelocity = estimateVelocity(ballCenters[1], (centers[1][1], centers[1][0]))
+                ballVelocities[1] = [(estimatedVelocity[0] + ballVelocities[1][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[1][1]*timeStepSize)/2.0]
+            else:
+                ballVelocities[1] = estimateVelocity(ballCenters[1], (centers[1][1], centers[1][0]))
+
+            ballCenters[1] = (int(centers[1][1]), int(centers[1][0]))
+        else:
+            # Ball 1 <-> Center 0, Ball 0 <-> Center 1
+
+            # First find the velocity for the first ball and update the position
+            if averageWithLastVelocity:
+                estimatedVelocity = estimateVelocity(ballCenters[1], (centers[0][1], centers[0][0]))
+                ballVelocities[1] = [(estimatedVelocity[0] + ballVelocities[1][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[1][1]*timeStepSize)/2.0]
+            else:
+                ballVelocities[1] = estimateVelocity(ballCenters[1], (centers[0][1], centers[0][0]))
+            
+            ballCenters[1] = (int(centers[0][1]), int(centers[0][0]))
+
+            # Now find the velocity for the second ball and update the position
+            if averageWithLastVelocity:
+                estimatedVelocity = estimateVelocity(ballCenters[0], (centers[1][1], centers[1][0]))
+                ballVelocities[0] = [(estimatedVelocity[0] + ballVelocities[0][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[0][1]*timeStepSize)/2.0]
+            else:
+                ballVelocities[0] = estimateVelocity(ballCenters[0], (centers[1][1], centers[1][0]))
+
+
+            ballCenters[0] = (int(centers[1][1]), int(centers[1][0]))
+
 def main():
 
     averageWithLastVelocity = True
     showBallDetectionData = False
+    numBalls = 3
 
-    ballCenters = [[0,0],[0,0],[0,0]]
-    ballVelocities = [[0,0],[0,0],[0,0]]
+    ballCenters, ballVelocities = initializeBallStates(numBalls)
 
+    # Get a camera input source
     cap = cv2.VideoCapture(videoFilename)
 
+    # Get a video output sink
     fourcc1 = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter('output.avi',fourcc1, 20.0, (640,480))
     
@@ -114,92 +268,26 @@ def main():
         frame = getFrame(cap)
         if frame is None:
             break
-
+        # Makes a copy before any changes occur
         frameCopy = frame.copy()
 
-        blurredFrame = blur(frame)
+        frame = processForThresholding(frame)
 
-        # Subtract background (makes isolation of balls more effective, in combination with thresholding)
-        # fgmask = fgbg.apply(frame)
-        # foreground = cv2.bitwise_and(frame,frame, mask = fgmask)
-
-        # Convert to HSV
-        # hsvBlurredFrame = cv2.cvtColor(foreground, cv2.COLOR_BGR2HSV)
-        hsvBlurredFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
-        cv2.imshow('hsvBlurredFrame', hsvBlurredFrame)
-
-        # Find locations of yellow balls
+        # Find locations of balls
         color = 'orange2'
         colorBounds = hsvColorBounds[color]
         thresholdImage = cv2.inRange(hsvBlurredFrame, colorBounds[0], colorBounds[1])
-        yellowThresholdImage = thresholdImage.copy()
+        # yellowThresholdImage = thresholdImage.copy()
 
         # Open to remove small elements/noise
-        kernel = np.ones((5,5)).astype(np.uint8)
-        thresholdImage = cv2.erode(thresholdImage, kernel)
-        thresholdImage = cv2.dilate(thresholdImage, kernel)
+        thresholdImage = smoothNoise(thresholdImage)
 
-        cv2.imshow('thresholdImage', thresholdImage)
+
+        # cv2.imshow('thresholdImage', thresholdImage)
 
         # Find the points in the image where this is true
-        points = np.dstack(np.where(thresholdImage>0)).astype(np.float32)
+        ballCenters, ballVelocities = findBallsInImage(thresholdImage, [0,1], ballCenters, ballVelocities)
 
-        if len(points[0]) >= 2:
-            # Break into clusters using k-means clustering
-            criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-            compactness, labels, centers = cv2.kmeans(points, 2, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)  
-
-            # Don't let the blue and white marked balls get mixed up
-            distBC0toC0 = np.sqrt((ballCenters[0][0] - centers[0][1])**2 + (ballCenters[0][1] - centers[0][0])**2)
-            distBC0toC1 = np.sqrt((ballCenters[0][0] - centers[1][1])**2 + (ballCenters[0][1] - centers[1][0])**2)
-
-            if distBC0toC0 < distBC0toC1:
-                # Ball 0 <-> Center 0, Ball 1 <-> Center 1
-
-                # First find the velocity for the first ball and update the position
-                if averageWithLastVelocity:
-                    # print 'Current velocity of ball 0:', ballVelocities[0][0]
-                    # print 'After conversion:', ballVelocities[0][0]*timeStepSize
-
-                    estimatedVelocity = estimateVelocity(ballCenters[0], (centers[0][1], centers[0][0]))
-                    # print 'Estimated velocity:', estimatedVelocity
-                    ballVelocities[0] = [(estimatedVelocity[0] + ballVelocities[0][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[0][1]*timeStepSize)/2.0]
-                    # print 'Updated to:', ballVelocities[0]
-                else:
-                    ballVelocities[0] = estimateVelocity(ballCenters[0], (centers[0][1], centers[0][0]))
-
-                ballCenters[0] = (int(centers[0][1]), int(centers[0][0]))
-
-                # Now find the velocity for the second ball and update the position
-                if averageWithLastVelocity:
-                    estimatedVelocity = estimateVelocity(ballCenters[1], (centers[1][1], centers[1][0]))
-                    ballVelocities[1] = [(estimatedVelocity[0] + ballVelocities[1][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[1][1]*timeStepSize)/2.0]
-                else:
-                    ballVelocities[1] = estimateVelocity(ballCenters[1], (centers[1][1], centers[1][0]))
-
-                ballCenters[1] = (int(centers[1][1]), int(centers[1][0]))
-            else:
-                # Ball 1 <-> Center 0, Ball 0 <-> Center 1
-
-                # First find the velocity for the first ball and update the position
-                if averageWithLastVelocity:
-                    estimatedVelocity = estimateVelocity(ballCenters[1], (centers[0][1], centers[0][0]))
-                    ballVelocities[1] = [(estimatedVelocity[0] + ballVelocities[1][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[1][1]*timeStepSize)/2.0]
-                else:
-                    ballVelocities[1] = estimateVelocity(ballCenters[1], (centers[0][1], centers[0][0]))
-                
-                ballCenters[1] = (int(centers[0][1]), int(centers[0][0]))
-
-                # Now find the velocity for the second ball and update the position
-                if averageWithLastVelocity:
-                    estimatedVelocity = estimateVelocity(ballCenters[0], (centers[1][1], centers[1][0]))
-                    ballVelocities[0] = [(estimatedVelocity[0] + ballVelocities[0][0]*timeStepSize)/2.0, (estimatedVelocity[1] + ballVelocities[0][1]*timeStepSize)/2.0]
-                else:
-                    ballVelocities[0] = estimateVelocity(ballCenters[0], (centers[1][1], centers[1][0]))
-
-
-                ballCenters[0] = (int(centers[1][1]), int(centers[1][0]))
 
             # Draw position markers
             cv2.circle(frame, tuple(ballCenters[0]), 6, (200,0,0), thickness=6)
