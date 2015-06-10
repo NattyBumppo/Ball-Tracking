@@ -17,32 +17,15 @@ hsvColorBounds['orange2'] = (np.array([2, 150, 140],np.uint8), np.array([19, 255
 
 numBalls = 3
 
-weightedAverage = False
-extendedKalmanFilter = True
-
-# Extended Kalman Filter variables
-
-phi = np.array([[1, 0],[0, 1]]) # State transition matrix
-H = [1, 0]
-# State transition matrix is defined by Eulerian 
-P = np.array([[1, 0], [0, 1]])
-
-# Covariance of process noise
-Q = 0
-# Covariance of measurement noise
-R = 1
-
-# Initial Kalman gain matrix
-K = np.array([[1, 0], [1, 0]])
-
+weightedFilter = True
 
 ballPositionMarkerColors = ((200,0,0), (255,200,200), (0,200,0), (0,0,200))
 ballTrajectoryMarkerColors = ((200,55,55), (255,200,200), (55,255,55), (55,55,255))
 
-videoFilename = 'juggling2.mp4'
+videoFilename = 'juggling.mp4'
 
-# pixelsPerMeter = 981.0 # Just a guess from looking at the video (juggling.mp4)
-pixelsPerMeter = 980.0 # Just a guess from looking at the video (juggling2.mp4)
+pixelsPerMeter = 700.0 # Just a guess from looking at the video (juggling.mp4)
+# pixelsPerMeter = 980.0 # Just a guess from looking at the video (juggling2.mp4)
 FPS = 30.0
 
 # Euler's method will proceed by timeStepSize / timeStepPrecision at a time
@@ -92,20 +75,19 @@ def getContours(image):
     _, contours, hierarchy = cv2.findContours(image, 1, 2)
     return contours
 
-# def rejectOutlierPoints(points, m=2):
-#     if len(points[0]) == 0:
-#         return []
-#     else:
-#         # Get means and SDs
-#         # print points
-#         meanX = np.mean([x for (x, y) in points[0]], axis=0)
-#         stdX = np.std([x for (x, y) in points[0]], axis=0)
-#         meanY = np.mean([y for (x, y) in points[0]], axis=0)
-#         stdY = np.std([y for (x, y) in points[0]], axis=0)
+def rejectOutlierPoints(points, m=2):
+    if len(points[0]) == 0:
+        return []
+    else:
+        # Get means and SDs
+        meanX = np.mean([x for (x, y) in points[0]], axis=0)
+        stdX = np.std([x for (x, y) in points[0]], axis=0)
+        meanY = np.mean([y for (x, y) in points[0]], axis=0)
+        stdY = np.std([y for (x, y) in points[0]], axis=0)
 
-#         nonOutliers = [(x,y) for x, y in points[0] if (abs(x - meanX) < stdX*m) and (abs(y - meanY) < stdY*m)]
+        nonOutliers = [(x,y) for x, y in points[0] if (abs(x - meanX) < stdX*m) and (abs(y - meanY) < stdY*m)]
 
-#         return np.array(nonOutliers)
+        return np.array(nonOutliers)
 
 # Gets velocity in pixels per frame
 def estimateVelocity(pos0, pos1, normalized=False):
@@ -132,15 +114,6 @@ def processForThresholding(frame):
     # cv2.imshow('hsvBlurredFrame', hsvBlurredFrame)
 
     return hsvBlurredFrame
-
-# # Returns an array of states (position and velocity) given a list of color-thresholded frames
-# # and a corresponding list of ball color names (must be the same size).
-# # This allows for flexibility in how many balls are detected for each color.
-# def getBallStates(thresholdFrames, ballColorNames):
-#     # Each threshold image must have a corresponding ball color,
-#     # even if duplicate threshold images are used for multiple
-#     # occurrences of balls that are colored the same
-#     assert len(thresholdFrames) == len(ballColorNames)
 
 def smoothNoise(frame):
     kernel = np.ones((5,5)).astype(np.uint8)
@@ -175,10 +148,21 @@ def findBallsInImage(image, ballCenters, ballVelocities):
     # Get a list of all of the non-blank points in the image
     points = np.dstack(np.where(image>0)).astype(np.float32)
 
+    # Filter out positional outliers
+    points = rejectOutlierPoints(points)
+
+    if len(points) == 0:
+        return []
+
     if len(points[0]) >= numBallsToFind:
+
         # Break into clusters using k-means clustering
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        compactness, labels, centers = cv2.kmeans(points, numBallsToFind, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)  
+        compactness, labels, centers = cv2.kmeans(points, numBallsToFind, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+
+        if numBallsToFind == 2:
+            compactness1, labels, centers = cv2.kmeans(points, 1, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+            compactness2, labels, centers = cv2.kmeans(points, 2, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
 
         # Convert numpy array to a list to make it easier to deal with
         centers = centers.tolist()
@@ -227,6 +211,8 @@ def findBallsInImage(image, ballCenters, ballVelocities):
         return []
 
 def drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ballIndices, ballCentersToPair, ballVelocitiesToPair):
+    # print len(matches)
+
     if len(matches) == 0:
         return frameCopy
 
@@ -242,57 +228,30 @@ def drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ball
                 globalIndex = ballIndices[i]
                 matchedIndices.append(globalIndex)
 
-                if extendedKalmanFilter:
+                previousPosition = ballCenters[globalIndex]
+                previousVelocity = ballVelocities[globalIndex]
+                observedPosition = match[1][0]
+                observedVelocity = [observedPosition[0] - previousPosition[0], observedPosition[1] - previousPosition[1]]                
+
+                if weightedFilter:
                     # Predict uncertainty for this timestep
-                    previousPosition = ballCenters[globalIndex]
-                    previousVelocity = ballVelocities[globalIndex]
                     predictedPosition = [previousPosition[0] + previousVelocity[0], previousPosition[1] + previousVelocity[1]]
-                    observedPosition = match[1][0]
-
                     predictedVelocity = [previousVelocity[0], previousVelocity[1] + gTimesteps];
-                    observedVelocity = [observedPosition[0] - previousPosition[0], observedPosition[1] - previousPosition[1]]
-
-                    # print 'Index %s' % globalIndex
-
-
-                    # print 'previousPosition: ', previousPosition
-                    # # print 'previousVelocity: ', previousVelocity
-                    # print 'predictedPosition: ', predictedPosition
-                    # print 'observedPosition: ', observedPosition
-
-                    # print ''
-
-                    # print 'previousVelocity: ', previousVelocity
-                    # print 'predictedVelocity: ', predictedVelocity
-                    # print 'observedVelocity: ', observedVelocity
-
-                    # print ''
-
-                    # print '=========================='
-
-                    # print ''
-                    
-                    # Update Kalman gain matrix
-                    # nope still identity
 
                     # Update estimated state
                     ballCenters[globalIndex] = [(predictedPosition[0] + observedPosition[0]) / 2.0, (predictedPosition[1] + observedPosition[1]) / 2.0]
                     ballVelocities[globalIndex] = [(predictedVelocity[0] + observedVelocity[0]) / 2.0, (predictedVelocity[1] + observedVelocity[1]) / 2.0]
-
+                else:
+                    # Just use observed positions and velocities
+                    ballCenters[globalIndex] = observedPosition
+                    ballVelocities[globalIndex] = observedVelocity
 
                 # Let's make a note of this match and make sure we don't get it again (and that we skip
                 # to looking for the position of the next ball in the list)
                 matchedIndices.append(i)
                 matched = True
                 
-                ballCenters[globalIndex] = match[1][0]
-
-                # if weightedAverage:
-                #     newVelocityX = match[1][1][0] * 0.8 + ballVelocity[0] * 0.2
-                #     newVelocityY = match[1][1][1] * 0.8 + ballVelocity[1] * 0.2
-                #     ballVelocities[globalIndex] = [newVelocityX, newVelocityY]
-                # else:
-                #     ballVelocities[globalIndex] = match[1][1]
+                # ballCenters[globalIndex] = match[1][0]
 
         # Propagate state for all balls that weren't matched (i.e., ones that we can't see)
         # for ball in [x for x in range(numBalls) if x not in matchedIndices]:
@@ -303,7 +262,6 @@ def drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ball
             
         #     ballCenters[ballIndex] = predictedPosition
         #     ballVelocities[ballIndex] = predictedVelocity
-        
 
     # Draw position markers (current and future trajectory)
     for i in ballIndices:
@@ -351,7 +309,7 @@ def main():
 
         frame = processForThresholding(frame)
 
-        for color, ballIndices in zip(['orange2', 'darkYellowAttempt2(isolating)'], ([0,1], [2])):
+        for color, ballIndices in zip(['orange', 'red'], ([0,1], [2])):
             # Find locations of ball(s)
             colorBounds = hsvColorBounds[color]
             thresholdImage = cv2.inRange(frame, colorBounds[0], colorBounds[1])
