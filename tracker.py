@@ -12,10 +12,29 @@ hsvColorBounds['yellow'] = (np.array([15, 204, 204],np.uint8), np.array([20, 255
 hsvColorBounds['red'] = (np.array([0, 153, 127],np.uint8), np.array([4, 230, 179],np.uint8))
 hsvColorBounds['orange'] = (np.array([15, 204, 204],np.uint8), np.array([20, 255, 255],np.uint8))
 hsvColorBounds['darkYellow'] = (np.array([20, 115, 140],np.uint8), np.array([25, 205, 230],np.uint8))
-hsvColorBounds['darkYellowAttempt2(isolating)'] = (np.array([20, 60, 117],np.uint8), np.array([32, 222, 222],np.uint8))
+hsvColorBounds['darkYellowAttempt2(isolating)'] = (np.array([20, 90, 117],np.uint8), np.array([32, 222, 222],np.uint8))
 hsvColorBounds['orange2'] = (np.array([2, 150, 140],np.uint8), np.array([19, 255, 204],np.uint8))
 
-averageWithLastVelocity = True
+numBalls = 3
+
+weightedAverage = False
+extendedKalmanFilter = True
+
+# Extended Kalman Filter variables
+
+phi = np.array([[1, 0],[0, 1]]) # State transition matrix
+H = [1, 0]
+# State transition matrix is defined by Eulerian 
+P = np.array([[1, 0], [0, 1]])
+
+# Covariance of process noise
+Q = 0
+# Covariance of measurement noise
+R = 1
+
+# Initial Kalman gain matrix
+K = np.array([[1, 0], [1, 0]])
+
 
 ballPositionMarkerColors = ((200,0,0), (255,200,200), (0,200,0), (0,0,200))
 ballTrajectoryMarkerColors = ((200,55,55), (255,200,200), (55,255,55), (55,55,255))
@@ -23,8 +42,7 @@ ballTrajectoryMarkerColors = ((200,55,55), (255,200,200), (55,255,55), (55,55,25
 videoFilename = 'juggling2.mp4'
 
 # pixelsPerMeter = 981.0 # Just a guess from looking at the video (juggling.mp4)
-pixelsPerMeter = 840.0 # Just a guess from looking at the video (juggling2.mp4)
-
+pixelsPerMeter = 980.0 # Just a guess from looking at the video (juggling2.mp4)
 FPS = 30.0
 
 # Euler's method will proceed by timeStepSize / timeStepPrecision at a time
@@ -217,23 +235,75 @@ def drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ball
         matched = False
 
         # Find exactly one match in the ballCenters/ballVelocities
+        matchedGlobalIndices = []
         for i, (ballCenter, ballVelocity) in enumerate(zip(ballCentersToPair, ballVelocitiesToPair)):
 
             if (match[0] == (ballCenter, ballVelocity)) and (i not in matchedIndices) and not matched:
+                globalIndex = ballIndices[i]
+                matchedIndices.append(globalIndex)
+
+                if extendedKalmanFilter:
+                    # Predict uncertainty for this timestep
+                    previousPosition = ballCenters[globalIndex]
+                    previousVelocity = ballVelocities[globalIndex]
+                    predictedPosition = [previousPosition[0] + previousVelocity[0], previousPosition[1] + previousVelocity[1]]
+                    observedPosition = match[1][0]
+
+                    predictedVelocity = [previousVelocity[0], previousVelocity[1] + gTimesteps];
+                    observedVelocity = [observedPosition[0] - previousPosition[0], observedPosition[1] - previousPosition[1]]
+
+                    # print 'Index %s' % globalIndex
+
+
+                    # print 'previousPosition: ', previousPosition
+                    # # print 'previousVelocity: ', previousVelocity
+                    # print 'predictedPosition: ', predictedPosition
+                    # print 'observedPosition: ', observedPosition
+
+                    # print ''
+
+                    # print 'previousVelocity: ', previousVelocity
+                    # print 'predictedVelocity: ', predictedVelocity
+                    # print 'observedVelocity: ', observedVelocity
+
+                    # print ''
+
+                    # print '=========================='
+
+                    # print ''
+                    
+                    # Update Kalman gain matrix
+                    # nope still identity
+
+                    # Update estimated state
+                    ballCenters[globalIndex] = [(predictedPosition[0] + observedPosition[0]) / 2.0, (predictedPosition[1] + observedPosition[1]) / 2.0]
+                    ballVelocities[globalIndex] = [(predictedVelocity[0] + observedVelocity[0]) / 2.0, (predictedVelocity[1] + observedVelocity[1]) / 2.0]
+
+
                 # Let's make a note of this match and make sure we don't get it again (and that we skip
                 # to looking for the position of the next ball in the list)
                 matchedIndices.append(i)
                 matched = True
-                globalIndex = ballIndices[i]
+                
                 ballCenters[globalIndex] = match[1][0]
 
-                if averageWithLastVelocity:
-                    newVelocityX = match[1][1][0] * 0.8 + ballVelocity[0] * 0.2
-                    newVelocityY = match[1][1][1] * 0.8 + ballVelocity[1] * 0.2
-                    ballVelocities[globalIndex] = [newVelocityX, newVelocityY]
-       
-                else:
-                    ballVelocities[globalIndex] = match[1][1]
+                # if weightedAverage:
+                #     newVelocityX = match[1][1][0] * 0.8 + ballVelocity[0] * 0.2
+                #     newVelocityY = match[1][1][1] * 0.8 + ballVelocity[1] * 0.2
+                #     ballVelocities[globalIndex] = [newVelocityX, newVelocityY]
+                # else:
+                #     ballVelocities[globalIndex] = match[1][1]
+
+        # Propagate state for all balls that weren't matched (i.e., ones that we can't see)
+        # for ball in [x for x in range(numBalls) if x not in matchedIndices]:
+        #     previousPosition = ballCenters[ballIndex]
+        #     previousVelocity = ballVelocities[ballIndex]
+        #     predictedPosition = [previousPosition[0] + previousVelocity[0], previousPosition[1] + previousVelocity[1]]
+        #     predictedVelocity = [previousVelocity[0], previousVelocity[1] + gTimesteps];                  
+            
+        #     ballCenters[ballIndex] = predictedPosition
+        #     ballVelocities[ballIndex] = predictedVelocity
+        
 
     # Draw position markers (current and future trajectory)
     for i in ballIndices:
@@ -260,7 +330,6 @@ def drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ball
 
 def main():
     showBallDetectionData = False
-    numBalls = 3
 
     ballCenters, ballVelocities = initializeBallStates(numBalls)
 
