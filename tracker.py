@@ -17,7 +17,7 @@ hsvColorBounds['orange2'] = (np.array([2, 150, 140],np.uint8), np.array([19, 255
 
 numBalls = 3
 
-weightedFilter = True
+weightedFilter = False
 positionPredictionWeight = 0.2
 positionObservationWeight = 0.8
 velocityPredictionWeight = 0.2
@@ -122,7 +122,7 @@ def processForThresholding(frame):
     return hsvBlurredFrame
 
 def smoothNoise(frame):
-    kernel = np.ones((10,10)).astype(np.uint8)
+    kernel = np.ones((3,3)).astype(np.uint8)
     frame = cv2.erode(frame, kernel)
     frame = cv2.dilate(frame, kernel)
 
@@ -284,8 +284,6 @@ def drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ball
         for position in positions:
             height, width, depth = frameCopy.shape
             if (position[0] < width) and (position[1] < height):
-
-                ballColor = (255,255,255)
                 cv2.circle(frameCopy, (int(position[0]), int(position[1])), 2, ballTrajectoryMarkerColors[i], thickness=2)   
 
         # Draw velocity vectors
@@ -323,7 +321,8 @@ def main():
             # Open to remove small elements/noise
             thresholdImage = smoothNoise(thresholdImage)
 
-            # cv2.imshow('thresholdImage', thresholdImage)
+            if color == 'orange':
+                cv2.imshow('thresholdImage', thresholdImage)
 
             # We'll use ballIndices to only select from a subset of the balls to pair
             ballCentersToPair = [ballCenters[index] for index in ballIndices]
