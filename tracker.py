@@ -18,6 +18,14 @@ hsvColorBounds['orange2'] = (np.array([2, 150, 140],np.uint8), np.array([19, 255
 numBalls = 3
 
 weightedFilter = True
+positionPredictionWeight = 0.2
+positionObservationWeight = 0.8
+velocityPredictionWeight = 0.2
+velocityObservationWeight = 0.8
+
+averagedObservedVelocity = False
+backgroundSubtraction = False
+outlierRejection = False
 
 ballPositionMarkerColors = ((200,0,0), (255,200,200), (0,200,0), (0,0,200))
 ballTrajectoryMarkerColors = ((200,55,55), (255,200,200), (55,255,55), (55,55,255))
@@ -103,22 +111,21 @@ def estimateVelocity(pos0, pos1, normalized=False):
 def processForThresholding(frame):
     blurredFrame = blur(frame)
 
-    # Subtract background (makes isolation of balls more effective, in combination with thresholding)
-    # fgmask = fgbg.apply(frame)
-    # foreground = cv2.bitwise_and(frame,frame, mask = fgmask)
+    if backgroundSubtraction:
+        # Subtract background (makes isolation of balls more effective, in combination with thresholding)
+        fgbg = cv2.createBackgroundSubtractorMOG2()    
+        fgmask = fgbg.apply(frame)
+        frame = cv2.bitwise_and(frame,frame, mask = fgmask)
 
-    # Convert to HSV
-    # hsvBlurredFrame = cv2.cvtColor(foreground, cv2.COLOR_BGR2HSV)
+    # Convert to HSV color space
     hsvBlurredFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
-    # cv2.imshow('hsvBlurredFrame', hsvBlurredFrame)
-
     return hsvBlurredFrame
 
 def smoothNoise(frame):
-    kernel = np.ones((5,5)).astype(np.uint8)
+    kernel = np.ones((10,10)).astype(np.uint8)
     frame = cv2.erode(frame, kernel)
-    frame = cv2.dilate(frame, kernel)    
+    frame = cv2.dilate(frame, kernel)
+
     return frame
 
 def initializeBallStates(numBalls):
@@ -148,8 +155,9 @@ def findBallsInImage(image, ballCenters, ballVelocities):
     # Get a list of all of the non-blank points in the image
     points = np.dstack(np.where(image>0)).astype(np.float32)
 
-    # Filter out positional outliers
-    points = rejectOutlierPoints(points)
+    if outlierRejection:
+        # Filter out positional outliers
+        points = rejectOutlierPoints(points)
 
     if len(points) == 0:
         return []
@@ -160,11 +168,19 @@ def findBallsInImage(image, ballCenters, ballVelocities):
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
         compactness, labels, centers = cv2.kmeans(points, numBallsToFind, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
 
-        if numBallsToFind == 2:
-            compactness1, labels, centers = cv2.kmeans(points, 1, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-            compactness2, labels, centers = cv2.kmeans(points, 2, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        # point_list = points[0].tolist()
+        # cluster_point_map = {}
+        # for i, point in enumerate(point_list):
+        #     label = labels[i]
+        #     if label in point_cluster_map:
+        #         point_cluster_map[label].append(tuple(point))
+        #     else:
+        #         point_cluster_map[label] = [tuple(point)]
+        # for cluster in cluster_point_map.keys():
+        #     cluster_points
 
         # Convert numpy array to a list to make it easier to deal with
+        # print centers
         centers = centers.tolist()
 
         # Centers come to us in (y, x) order. This is annoying, so we'll switch it to (x, y) order.
@@ -231,7 +247,10 @@ def drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ball
                 previousPosition = ballCenters[globalIndex]
                 previousVelocity = ballVelocities[globalIndex]
                 observedPosition = match[1][0]
-                observedVelocity = [observedPosition[0] - previousPosition[0], observedPosition[1] - previousPosition[1]]                
+                observedVelocity = [observedPosition[0] - previousPosition[0], observedPosition[1] - previousPosition[1]]   
+
+                if averagedObservedVelocity:
+                    observedVelocity = [(observedVelocity[0] + ballVelocities[globalIndex][0]) / 2.0, (observedVelocity[1] + ballVelocities[globalIndex][1]) / 2.0]
 
                 if weightedFilter:
                     # Predict uncertainty for this timestep
@@ -239,8 +258,9 @@ def drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ball
                     predictedVelocity = [previousVelocity[0], previousVelocity[1] + gTimesteps];
 
                     # Update estimated state
-                    ballCenters[globalIndex] = [(predictedPosition[0] + observedPosition[0]) / 2.0, (predictedPosition[1] + observedPosition[1]) / 2.0]
-                    ballVelocities[globalIndex] = [(predictedVelocity[0] + observedVelocity[0]) / 2.0, (predictedVelocity[1] + observedVelocity[1]) / 2.0]
+                    ballCenters[globalIndex] = [predictedPosition[0]*positionPredictionWeight + observedPosition[0]*positionObservationWeight, predictedPosition[1]*positionPredictionWeight + observedPosition[1]*positionObservationWeight]
+                    ballVelocities[globalIndex] = [predictedVelocity[0]*velocityPredictionWeight + observedVelocity[0]*velocityObservationWeight, predictedVelocity[1]*velocityPredictionWeight + observedVelocity[1]*velocityObservationWeight]
+
                 else:
                     # Just use observed positions and velocities
                     ballCenters[globalIndex] = observedPosition
@@ -251,18 +271,6 @@ def drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ball
                 matchedIndices.append(i)
                 matched = True
                 
-                # ballCenters[globalIndex] = match[1][0]
-
-        # Propagate state for all balls that weren't matched (i.e., ones that we can't see)
-        # for ball in [x for x in range(numBalls) if x not in matchedIndices]:
-        #     previousPosition = ballCenters[ballIndex]
-        #     previousVelocity = ballVelocities[ballIndex]
-        #     predictedPosition = [previousPosition[0] + previousVelocity[0], previousPosition[1] + previousVelocity[1]]
-        #     predictedVelocity = [previousVelocity[0], previousVelocity[1] + gTimesteps];                  
-            
-        #     ballCenters[ballIndex] = predictedPosition
-        #     ballVelocities[ballIndex] = predictedVelocity
-
     # Draw position markers (current and future trajectory)
     for i in ballIndices:
         centerX = ballCenters[i][0]
@@ -297,8 +305,6 @@ def main():
     # Get a video output sink
     fourcc1 = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter('output.avi',fourcc1, 20.0, (640,480))
-    
-    # fgbg = cv2.createBackgroundSubtractorMOG2()
 
     while(cap.isOpened()):
         frame = getFrame(cap)
@@ -343,6 +349,7 @@ def main():
             out.write(frameCopy)
 
         k = cv2.waitKey(int(1000.0 / FPS)) & 0xFF
+        
         if k == 27:
             # User hit ESC
             break

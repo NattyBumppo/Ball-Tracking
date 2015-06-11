@@ -1,0 +1,11 @@
+Student name:
+Nathaniel Guy
+
+Paper name:
+Graph Theoretic Connectivity Control of Mobile Robot Networks
+
+Paper authors:
+Michael M. Zavlanos, Member, IEEE, Magnus B. Egerstedt, Senior Member, IEEE, and George J. Pappas, Fellow, IEEE
+
+Description:
+This is a paper that uses several of the exact concepts we've studied in 597 to describe how to control a group of mobile robots. It uses a graph theoretic approach, and builds on the concepts of rendezvous behavior, connectivity, and formation control that we have been studying in class. This practical application of the theory seems very relevant, and I believe that I could not only present to the class but also develop simulations to illustrate its points.
