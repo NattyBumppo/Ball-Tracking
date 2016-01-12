@@ -124,7 +124,7 @@ After background subtraction and thresholding are complete, extraneous noise pix
 
 Subsequently, an outlier rejection algorithm is applied, whereby the mean position of all of the pixels is found, and any pixels that fall outside of two standard deviations of the mean are discarded. This removes any extraneous pixel groups that are far from the central grouping of pixels. It should be noted that this technique can have deleterious effects to object isolation if there are multiple meaningful pixel clusters at this point, which would occur if more than one ball has the same color. In those situations, it is better to avoid application of this technique. It should also be noted that outlier rejection incurs a major time penalty, and it seems a likely candidate for exclusion for performance-driven or real-time applications.
 
-A post-denoising sample image is shown in \ref{fig:denoise}.
+A post-denoising sample image is shown in Fig.~\ref{fig:denoised}.
 
 \begin{figure}
 \centering
@@ -257,9 +257,5 @@ Zivkovic, Z., van der Heijden, F., "Efficient adaptive density estimation per im
 Zivkovic, Z., "Improved adaptive Gaussian mixture model for background subtraction," Pattern Recognition, 2004. ICPR 2004. Proceedings of the 17th International Conference on, vol.2, no., pp.28,31 Vol.2, 23-26 Aug. 2004.
 
 \end{thebibliography}
-
-\clearpage
-
-An appendix follows, and contains Python source code for ball tracking. The OpenCV2 and numpy libraries are required to use this code.
 
 \end{document}
