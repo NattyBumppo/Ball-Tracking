@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.3-1.40.12 (TeX Live 2011) (format=pdflatex 2011.7.3)  12 JAN 2016 11:35
+This is pdfTeX, Version 3.1415926-2.3-1.40.12 (TeX Live 2011) (format=pdflatex 2011.7.3)  12 JAN 2016 11:39
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -298,10 +298,6 @@ File: denoised.png Graphic file (type png)
 Package pdftex.def Info: denoised.png used on input line 131.
 (pdftex.def)             Requested size: 137.76434pt x 134.00027pt.
 
-
-LaTeX Warning: Reference `fig:clustering' on page 2 undefined on input line 142
-.
-
 <clusters.png, id=19, 225.84375pt x 169.38281pt>
 File: clusters.png Graphic file (type png)
  <use clusters.png>
@@ -332,33 +328,29 @@ Before submitting the final camera ready copy, remember to:
  uses only Type 1 fonts and that every step in the generation
  process uses the US letter (8.5in X 11in) paper size.
 
-[4 <./trajectories.png>] (./sample.aux)
-
-LaTeX Warning: There were undefined references.
-
- ) 
+[4 <./trajectories.png>] (./sample.aux) ) 
 Here is how much of TeX's memory you used:
- 2703 strings out of 493633
- 39603 string characters out of 3143378
+ 2701 strings out of 493633
+ 39581 string characters out of 3143378
  104979 words of memory out of 3000000
- 5977 multiletter control sequences out of 15000+200000
- 38108 words of font info for 77 fonts, out of 3000000 for 9000
+ 5976 multiletter control sequences out of 15000+200000
+ 37001 words of font info for 76 fonts, out of 3000000 for 9000
  831 hyphenation exceptions out of 8191
  38i,9n,23p,827b,285s stack positions out of 5000i,500n,10000p,200000b,50000s
-{/usr/local/texlive/2011/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/t
-exlive/2011/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/te
-xlive/2011/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/tex
-live/2011/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/local/texli
-ve/2011/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive
-/2011/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/local/texlive/20
-11/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/201
-1/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2011/
-texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texlive/2011/texmf-di
-st/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2011/texmf-dist/fonts/t
-ype1/urw/times/utmbi8a.pfb></usr/local/texlive/2011/texmf-dist/fonts/type1/urw/
-times/utmr8a.pfb></usr/local/texlive/2011/texmf-dist/fonts/type1/urw/times/utmr
-i8a.pfb>
-Output written on sample.pdf (4 pages, 509236 bytes).
+{/usr/local/texlive/2011/texmf-dist/fo
+nts/enc/dvips/base/8r.enc}</usr/local/texlive/2011/texmf-dist/fonts/type1/publi
+c/amsfonts/cm/cmex10.pfb></usr/local/texlive/2011/texmf-dist/fonts/type1/public
+/amsfonts/cm/cmmi10.pfb></usr/local/texlive/2011/texmf-dist/fonts/type1/public/
+amsfonts/cm/cmmi7.pfb></usr/local/texlive/2011/texmf-dist/fonts/type1/public/am
+sfonts/cm/cmr10.pfb></usr/local/texlive/2011/texmf-dist/fonts/type1/public/amsf
+onts/cm/cmr7.pfb></usr/local/texlive/2011/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmsy10.pfb></usr/local/texlive/2011/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmsy7.pfb></usr/local/texlive/2011/texmf-dist/fonts/type1/urw/courier/ucrr8
+a.pfb></usr/local/texlive/2011/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></us
+r/local/texlive/2011/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/local/t
+exlive/2011/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/201
+1/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
+Output written on sample.pdf (4 pages, 508884 bytes).
 PDF statistics:
  77 PDF objects out of 1000 (max. 8388607)
  48 compressed objects within 1 object stream

@@ -107,7 +107,7 @@ This technique allows for foreground pixels to be reliably isolated, dramaticall
 
 \subsection{Thresholding}
 
-After background subtraction, the remaining pixels will correspond to moving objects, but are just as likely to correspond to human appendages or shadows as they are to the objects of interest (juggling balls). To further isolate the balls, a simple color thresholding technique is used, wherein the expected color ranges that a given ball can take are determined and pixels that fall outside of these ranges are discarded. (This technique can also be employed multiple times with different color ranges to differentiate between different colors of balls.) Just before color thresholding is used, a median blur with a 9 pixel by 9 pixel kernel size is applied to smooth the effects of Gaussian noise on pixel color. A post-thresholding sample image is shown in \ref{fig:threshold}.
+After background subtraction, the remaining pixels will correspond to moving objects, but are just as likely to correspond to human appendages or shadows as they are to the objects of interest (juggling balls). To further isolate the balls, a simple color thresholding technique is used, wherein the expected color ranges that a given ball can take are determined and pixels that fall outside of these ranges are discarded. (This technique can also be employed multiple times with different color ranges to differentiate between different colors of balls.) Just before color thresholding is used, a median blur with a 9 pixel by 9 pixel kernel size is applied to smooth the effects of Gaussian noise on pixel color. A post-thresholding sample image is shown in Fig.~\ref{fig:threshold}.
 
 Though for the purposes of this research the color ranges of the balls were determined by hand, there are methods capable of characterizing these color ranges while discarding non-ball colors. An application of the Hough circle transform, applied over time to discover optical flow of circular objects, would be one way to characterize such color ranges, but was not employed in this project \cite{hough}.
 
@@ -139,7 +139,7 @@ After all of the aforementioned techniques have been applied, the remaining pixe
 
 K-means clustering is applied in order to find the centers of these clusters, and these centers are considered to be the positions of the balls. In practice, this often ends up being slightly inaccurate, as the spherical shape of the balls and non-uniform lighting in the scene usually results in shading that colors each ball differently on either side, and causes uneven object isolation. This causes k-means cluster centers to be displaced towards the side of greater recognition (usually, of greater color brightness). There are various techniques that may be able to be used to counteract this effect: future work could include refinement of these cluster centers using outlier rejection on the clusters before the application of a minimum enclosing circle on the remaining pixels.
 
-After clustering, the observed positions are determined and can be drawn onto the original source image. A sample image of this is shown in \ref{fig:clustering}.
+After clustering, the observed positions are determined and can be drawn onto the original source image. A sample image of this is shown in Fig.~\ref{fig:clusters}.
 
 \begin{figure}
 \centering
@@ -154,7 +154,7 @@ One vision-related problem still remains, which a careful reader may have alread
 
 Techniques from the field of optical flow estimation can be utilized to inform these decisions. In this implementation, the positions of all balls are maintained between frames, and at each new frame, a least-squares estimate is made in 4-dimensional velocity and position space in order to estimate which ball is which. The matching that results in the smallest squared velocity and position change is the one that will be used. More information about this technique, and others, can be found in \cite{fleet}.
 
-Two consecutive frames, where markers show ball identities being maintained across frame boundaries, are shown in \ref{fig:matching}.
+Two consecutive frames, where markers show ball identities being maintained across frame boundaries, are shown in Fig.~ \ref{fig:matching}.
 
 \begin{figure}
 \centering
@@ -194,7 +194,7 @@ Although significantly filtering was already performed during the ball isolation
 
 \subsection{Trajectory Prediction}
 
-In addition to a state estimate determination, a prediction of the future states of each ball can be made using similar techiques to those described in "Position and Velocity Prediction" above. The states of the balls are propagated forward in time using Euler's method, and are then shown on the screen to visualize the future trajectory of the ball. A sample image of this is shown in \ref{fig:trajectories}.
+In addition to a state estimate determination, a prediction of the future states of each ball can be made using similar techiques to those described in "Position and Velocity Prediction" above. The states of the balls are propagated forward in time using Euler's method, and are then shown on the screen to visualize the future trajectory of the ball. A sample image of this is shown in Fig.~\ref{fig:trajectories}.
 
 \begin{figure}
 \centering
