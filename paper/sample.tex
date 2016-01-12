@@ -103,7 +103,7 @@ A variety of techniques were used to filter the frames of video data and extract
 
 First, the background pixels of the video feed frames (i.e., those with very little movement) were separated from those of the foreground (i.e., those with a greater degree of movement). To accomplish this, the MOG (Mixture of Gaussians) background subtraction method was employed. This technique characterizes each pixel by its RGB intensity, and calculates a Gaussian probability distribution at each pixel for what RGB values it is likely to have. Those pixels that fall into the less probable areas of the distribution are considered to be transient, and thus, to be foreground pixels. The Gaussian curves are adaptively determined and their parameters evolve over time, making the model robust to camera movements and lighting changes. See \cite{zoran1} and \cite{zoran2} for more information.
 
-This technique allows for foreground pixels to be reliably isolated, dramatically decreasing the search space for significant "ball pixels" and speeding up the execution time of the algorithms that follow.
+This technique allows for foreground pixels to be reliably isolated, dramatically decreasing the search space for significant ``ball pixels" and speeding up the execution time of the algorithms that follow.
 
 \subsection{Thresholding}
 
@@ -166,7 +166,7 @@ Two consecutive frames, where markers show ball identities being maintained acro
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{STATE ESTIMATION}
 
-After computer vision techniques have been applied to isolate the "ball pixels," state estimation techniques can be applied to determine the position and velocitiy of each ball, and to predict their future states as well.
+After computer vision techniques have been applied to isolate the ``ball pixels," state estimation techniques can be applied to determine the position and velocitiy of each ball, and to predict their future states as well.
 
 \subsection{Position and Velocity Observation}
 
@@ -186,15 +186,15 @@ x_{k} = x_{k-1} + \dot{x}_{k-1} \Delta t \\ \\
 \ddot{x}_{k} = (0, -9.81) \text{ m/s}
 \]
 
-The astute reader may have already noticed that these predictions require a knowledge of the acceleration due to gravity in terms of screen pixels. This can be determined by calculating a mapping from pixel space to real-world space. For the purposes of this project, "pixels per meter" calculations were determined by hand; however, it would be possible to empirically determine this information during a first pass on the video data by observing the acceleration of the balls within pixel space.
+The astute reader may have already noticed that these predictions require a knowledge of the acceleration due to gravity in terms of screen pixels. This can be determined by calculating a mapping from pixel space to real-world space. For the purposes of this project, ``pixels per meter" calculations were determined by hand; however, it would be possible to empirically determine this information during a first pass on the video data by observing the acceleration of the balls within pixel space.
 
 \subsection{Filtering for State Estimation}
 
-Although significantly filtering was already performed during the ball isolation steps, the system is still subject to noise from incorrect position estimates and from the wholly unanticipated impulses applied to the balls whenever touched by the juggling. It is possible, however, to smooth this noise with state estimations that incorporate a filter based on the predicted state and the observed one. These techniques were applied to the states discussed above, resulting in somewhat smoother state estimates (but in some artifacts, which are discussed in the "Results" section.)
+Although significantly filtering was already performed during the ball isolation steps, the system is still subject to noise from incorrect position estimates and from the wholly unanticipated impulses applied to the balls whenever touched by the juggling. It is possible, however, to smooth this noise with state estimations that incorporate a filter based on the predicted state and the observed one. These techniques were applied to the states discussed above, resulting in somewhat smoother state estimates (but in some artifacts, which are discussed in the ``Results" section.)
 
 \subsection{Trajectory Prediction}
 
-In addition to a state estimate determination, a prediction of the future states of each ball can be made using similar techiques to those described in "Position and Velocity Prediction" above. The states of the balls are propagated forward in time using Euler's method, and are then shown on the screen to visualize the future trajectory of the ball. A sample image of this is shown in Fig.~\ref{fig:trajectories}.
+In addition to a state estimate determination, a prediction of the future states of each ball can be made using similar techiques to those described in ``Position and Velocity Prediction" above. The states of the balls are propagated forward in time using Euler's method, and are then shown on the screen to visualize the future trajectory of the ball. A sample image of this is shown in Fig.~\ref{fig:trajectories}.
 
 \begin{figure}
 \centering
@@ -216,7 +216,7 @@ A simple smoothing technique was performed by averaging observed velocity across
 
 \subsection{Weighted State Combination}
 
-A slightly more complicated technique was that of using a weighted combination of observed and predicted states, as with a constant-gain Kalman filter. This allowed adaptability and "tweaking" to alter tracking accuracy. Slightly better results, with results more robust to tracking, were obtained with this technique.Weights that favored instantaneous observations were favored, probably due to integral error of slightly erroneous state estimations causing a high prediction weight to have a hard time converging on the correct state. Prediction accuracy seemed to vary often depending on the variables that are difficult to quantify, such as amount of spin on non-homogeneous balls, lighting in the room, length of time that balls were held, and other factors.
+A slightly more complicated technique was that of using a weighted combination of observed and predicted states, as with a constant-gain Kalman filter. This allowed adaptability and ``tweaking" to alter tracking accuracy. Slightly better results, with results more robust to tracking, were obtained with this technique.Weights that favored instantaneous observations were favored, probably due to integral error of slightly erroneous state estimations causing a high prediction weight to have a hard time converging on the correct state. Prediction accuracy seemed to vary often depending on the variables that are difficult to quantify, such as amount of spin on non-homogeneous balls, lighting in the room, length of time that balls were held, and other factors.
 
 Equal weights for both instantaneous velocity observations and position observations were used, perhaps resulting in a larger degree of error than if the weights had been based on error covariances.
 
@@ -239,22 +239,22 @@ The author gratefully acknowledges the help and tutelage of the course professor
 \begin{thebibliography}{99}
 
 \bibitem{kalmanapollo}
-Grewal, M.S., Andrews, A.P., "Applications of Kalman Filtering in Aerospace 1960 to the Present," IEEE Control Systems Magazine 30(3), 69-78 (2010).
+Grewal, M.S., Andrews, A.P., ``Applications of Kalman Filtering in Aerospace 1960 to the Present," IEEE Control Systems Magazine 30(3), 69-78 (2010).
 
 \bibitem{funk}
-Funk, N., "A Study of the Kalman Filter Applied to Visual Tracking." University of Alberta, 2003.
+Funk, N., ``A Study of the Kalman Filter Applied to Visual Tracking." University of Alberta, 2003.
 
 \bibitem{hough}
-Hough, P. V. C., "Methods and Means for Recognizing Complex Patterns," U.S. Patent 3069654, 1962.
+Hough, P. V. C., ``Methods and Means for Recognizing Complex Patterns," U.S. Patent 3069654, 1962.
 
 \bibitem{fleet}
-Fleet, D., Weiss, Y., "Optical Flow Estimation" (from Mathematical models for Computer Vision: The Handbook), Springer,m pp. 239-257, 2005.
+Fleet, D., Weiss, Y., ``Optical Flow Estimation" (from Mathematical models for Computer Vision: The Handbook), Springer,m pp. 239-257, 2005.
 
 \bibitem{zoran1}
-Zivkovic, Z., van der Heijden, F., "Efficient adaptive density estimation per image pixel for the task of background subtraction," Pattern Recogn. Lett. 27, 7, 773-780, 2006.
+Zivkovic, Z., van der Heijden, F., ``Efficient adaptive density estimation per image pixel for the task of background subtraction," Pattern Recogn. Lett. 27, 7, 773-780, 2006.
 
 \bibitem{zoran2}
-Zivkovic, Z., "Improved adaptive Gaussian mixture model for background subtraction," Pattern Recognition, 2004. ICPR 2004. Proceedings of the 17th International Conference on, vol.2, no., pp.28,31 Vol.2, 23-26 Aug. 2004.
+Zivkovic, Z., ``Improved adaptive Gaussian mixture model for background subtraction," Pattern Recognition, 2004. ICPR 2004. Proceedings of the 17th International Conference on, vol.2, no., pp.28,31 Vol.2, 23-26 Aug. 2004.
 
 \end{thebibliography}
 
