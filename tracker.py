@@ -4,6 +4,8 @@ import cv2
 import itertools
 import math
 
+saveFrameNo = 10
+
 hsvColorBounds = {}
 hsvColorBounds['darkGreen'] = (np.array([35,50,20],np.uint8), np.array([80,255,120],np.uint8))
 hsvColorBounds['green'] = (np.array([30,0,0],np.uint8), np.array([100,255,255],np.uint8))
@@ -17,23 +19,23 @@ hsvColorBounds['orange2'] = (np.array([2, 150, 140],np.uint8), np.array([19, 255
 
 numBalls = 3
 
-weightedFilter = False
+weightedFilter = True
 positionPredictionWeight = 0.2
 positionObservationWeight = 0.8
 velocityPredictionWeight = 0.2
 velocityObservationWeight = 0.8
 
 averagedObservedVelocity = False
-backgroundSubtraction = False
-outlierRejection = False
+backgroundSubtraction = True
+outlierRejection = True
 
 ballPositionMarkerColors = ((200,0,0), (255,200,200), (0,200,0), (0,0,200))
 ballTrajectoryMarkerColors = ((200,55,55), (255,200,200), (55,255,55), (55,55,255))
 
-videoFilename = 'juggling.mp4'
+videoFilename = 'juggling2.mp4'
 
-pixelsPerMeter = 700.0 # Just a guess from looking at the video (juggling.mp4)
-# pixelsPerMeter = 980.0 # Just a guess from looking at the video (juggling2.mp4)
+# pixelsPerMeter = 700.0 # Just a guess from looking at the video (juggling.mp4)
+pixelsPerMeter = 980.0 # Just a guess from looking at the video (juggling2.mp4)
 FPS = 30.0
 
 # Euler's method will proceed by timeStepSize / timeStepPrecision at a time
@@ -108,14 +110,20 @@ def estimateVelocity(pos0, pos1, normalized=False):
     return velocity
 
 # Performs all necessary pre-processing steps before the color thresholding
-def processForThresholding(frame):
+def processForThresholding(frame, frameNo=0):
     blurredFrame = blur(frame)
 
     if backgroundSubtraction:
         # Subtract background (makes isolation of balls more effective, in combination with thresholding)
-        fgbg = cv2.createBackgroundSubtractorMOG2()    
-        fgmask = fgbg.apply(frame)
+        # height = np.size(frame, 0);
+        # width = np.size(frame, 1);
+        fgbg = cv2.createBackgroundSubtractorMOG2(500, 30, True)
+        fgmask = fgbg.apply(frame, None, 0.01)
         frame = cv2.bitwise_and(frame,frame, mask = fgmask)
+
+        if frameNo == saveFrameNo:
+            cv2.imwrite('backgroundSub.jpg', frame)
+            print "Wrote bg subtracted image"
 
     # Convert to HSV color space
     hsvBlurredFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -148,7 +156,7 @@ def distance2D(p, q):
     dist = math.sqrt((p[0]-q[0])**2 + (p[1]-q[1])**2)
     return dist
 
-def findBallsInImage(image, ballCenters, ballVelocities):
+def findBallsInImage(image, ballCenters, ballVelocities, frameNo=0):
 
     numBallsToFind = len(ballCenters)
 
@@ -158,6 +166,18 @@ def findBallsInImage(image, ballCenters, ballVelocities):
     if outlierRejection:
         # Filter out positional outliers
         points = rejectOutlierPoints(points)
+
+        if frameNo == saveFrameNo:  
+            height = np.size(image, 0);
+            width = np.size(image, 1);
+            blankImage = np.zeros((height, width, 3), np.uint8);
+
+            for point in points.tolist():
+                print int(point[0]), int(point[1])
+                cv2.circle(blankImage, (int(point[0]), int(point[1])), 6, (255, 255, 255), thickness=6)
+            if len(points) > 0:
+                cv2.imwrite('outlierRejected.jpg', blankImage)
+                print "Wrote outlier image"
 
     if len(points) == 0:
         return []
@@ -203,7 +223,7 @@ def findBallsInImage(image, ballCenters, ballVelocities):
             # did correspond to it
             theoreticalVelocity = (np.array(center) - np.array(ballCenter)).tolist()
 
-            distance = distance4D(ballCenter, center, theoreticalVelocity, theoreticalVelocity)
+            distance = distance4D(ballCenter, center, theoreticalVelocity, ballVelocity)
             pairings.append([pair[0], [pair[1], theoreticalVelocity], distance])
 
         # Sort pairings by resulting distance element
@@ -226,7 +246,7 @@ def findBallsInImage(image, ballCenters, ballVelocities):
     else:
         return []
 
-def drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ballIndices, ballCentersToPair, ballVelocitiesToPair):
+def drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ballIndices, ballCentersToPair, ballVelocitiesToPair, frameNo=0):
     # print len(matches)
 
     if len(matches) == 0:
@@ -281,10 +301,19 @@ def drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ball
 
         positions = getTrajectory((centerX, centerY), (velocityX, velocityY), (0, gTimesteps), timeStepSize, eulerSteps)
 
+    if frameNo == saveFrameNo:
+        cv2.imwrite('clusteredMatched.jpg', frameCopy)
+        print "Wrote clustered and matched image"
+
+    for i in ballIndices:
         for position in positions:
             height, width, depth = frameCopy.shape
             if (position[0] < width) and (position[1] < height):
                 cv2.circle(frameCopy, (int(position[0]), int(position[1])), 2, ballTrajectoryMarkerColors[i], thickness=2)   
+
+    if frameNo == saveFrameNo:
+        cv2.imwrite('predicted.jpg', frameCopy)
+        print "Wrote predicted image"
 
         # Draw velocity vectors
         # cv2.arrowedLine(frameCopy, (int(centerX), int(centerY)), (int(ballCenters[i][0]+ballVelocities[i][0]*2), int(ballCenters[i][1]+ballVelocities[i][1]*2)), ballTrajectoryMarkerColors[i], 2, 2, 0, 0.1)
@@ -301,8 +330,10 @@ def main():
     cap = cv2.VideoCapture(videoFilename)
 
     # Get a video output sink
-    fourcc1 = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter('output.avi',fourcc1, 20.0, (640,480))
+    fourcc1 = fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter('output.mp4',fourcc1, 20.0, (1280,720))
+
+    frameNo = 0
 
     while(cap.isOpened()):
         frame = getFrame(cap)
@@ -311,18 +342,26 @@ def main():
         # Makes a copy before any changes occur
         frameCopy = frame.copy()
 
-        frame = processForThresholding(frame)
+        frame = processForThresholding(frame, frameNo)
 
-        for color, ballIndices in zip(['orange', 'red'], ([0,1], [2])):
+        for color, ballIndices in zip(['orange2', 'darkYellowAttempt2(isolating)'], ([0,1], [2])):
             # Find locations of ball(s)
             colorBounds = hsvColorBounds[color]
             thresholdImage = cv2.inRange(frame, colorBounds[0], colorBounds[1])
 
+            if frameNo == saveFrameNo:
+                cv2.imwrite('thresholded.jpg', thresholdImage)
+                print "Wrote thresholded image"
+
             # Open to remove small elements/noise
             thresholdImage = smoothNoise(thresholdImage)
 
-            if color == 'orange':
-                cv2.imshow('thresholdImage', thresholdImage)
+            if frameNo == saveFrameNo:
+                cv2.imwrite('denoised.jpg', thresholdImage)
+                print "Wrote denoised image"
+
+            # if color == 'orange':
+                # cv2.imshow('thresholdImage', thresholdImage)
 
             # We'll use ballIndices to only select from a subset of the balls to pair
             ballCentersToPair = [ballCenters[index] for index in ballIndices]
@@ -330,9 +369,9 @@ def main():
 
             # Find the points in the image where this is true, and get the matches that pair
             # these points to the balls that we're already tracking
-            matches = findBallsInImage(thresholdImage, ballCentersToPair, ballVelocitiesToPair)
+            matches = findBallsInImage(thresholdImage, ballCentersToPair, ballVelocitiesToPair, frameNo)
 
-            frameCopy = drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ballIndices, ballCentersToPair, ballVelocitiesToPair)
+            frameCopy = drawBallsAndTrajectory(frameCopy, matches, ballCenters, ballVelocities, ballIndices, ballCentersToPair, ballVelocitiesToPair, frameNo)
 
         if showBallDetectionData:
             combinedMask = cv2.bitwise_or(yellowThresholdImage, redThresholdImage, frame)
@@ -352,6 +391,8 @@ def main():
         if k == 27:
             # User hit ESC
             break
+
+        frameNo += 1
 
     cap.release()
     out.release()
